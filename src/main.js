@@ -8,21 +8,28 @@ const source = path.join(__dirname, "../sources/e15-1.pdf");
 
 let dataBuffer = fs.readFileSync(source);
 
-axios.get("https://busgarraf.cat/es/lineas/").then(({ data }) => {
-  const $ = cheerio.load(data);
-  const stops = $("h2 + div ul")
-    .text()
-    .split("\n\n")
-    .filter((element) => {
-      if (
-        element.toLowerCase().includes("maristany") &&
-        element.toLowerCase().includes("gran via")
-      )
-        return element;
-    });
+async function getBusStops() {
+  try {
+    const response = await axios.get("https://busgarraf.cat/es/lineas/");
+    const $ = cheerio.load(response.data);
+    const stops = $("h2 + div ul")
+      .text()
+      .split("\n\n")
+      .filter((element) => {
+        const elementInLowerCase = element.toLowerCase();
+        if (
+          elementInLowerCase.includes("maristany") &&
+          elementInLowerCase.includes("gran via")
+        )
+          return element;
+      });
+    return stops[0].split("\n");
+  } catch (error) {
+    console.error(error);
+  }
+}
 
-  console.log(stops[0]);
-});
+getBusStops().then((busStops) => console.log(busStops.length));
 
 pdf(dataBuffer).then(function (data) {
   const pdfText = data.text;
@@ -41,10 +48,10 @@ pdf(dataBuffer).then(function (data) {
   let count = 0;
   splittedUnformattedSchedules.map((element) => {
     if (element.length === 1 || element.length === 2)
-      preFormattedSchedules.push(Number(element));
+      preFormattedSchedules.push(element);
     else if (element.length === 3 || element.length === 4) {
-      preFormattedSchedules.push(Number(element.slice(0, 2)));
-      preFormattedSchedules.push(Number(element.slice(2, element.length)));
+      preFormattedSchedules.push(element.slice(0, 2));
+      preFormattedSchedules.push(element.slice(2, element.length));
     }
   });
 
@@ -56,4 +63,31 @@ pdf(dataBuffer).then(function (data) {
     );
     i = i + 2;
   }
+
+  const timetablesToBarcelona = [];
+  const timetablesToVilanova = [];
+
+  i = 0;
+  while (i < formattedSchedules.length) {
+    let j = 0;
+
+    while (j < 11) {
+      timetablesToBarcelona.push(formattedSchedules[j + i]);
+      j++;
+    }
+    i = i + 22;
+  }
+
+  i = 11;
+  while (i < formattedSchedules.length) {
+    let j = 0;
+
+    while (j < 11) {
+      timetablesToVilanova.push(formattedSchedules[j + i]);
+      j++;
+    }
+    i = i + 22;
+  }
+
+  console.log(timetablesToVilanova);
 });
